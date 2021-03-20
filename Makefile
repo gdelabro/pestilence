@@ -25,8 +25,7 @@ CFLAGS = -Wall -Werror -Wextra
 SRC = $(addprefix $(SRC_PATH)/,$(SR_NAME))
 OBJ = $(addprefix $(OBJ_PATH)/,$(OBJ_NAME))
 
-all: $(NAME)
-
+all: asm#$(NAME)
 
 $(NAME): $(OBJ)
 	@printf "\n"
@@ -37,6 +36,13 @@ $(OBJ_PATH)/%.o: $(SRC_PATH)/%.c
 	@printf "\033[34;1m| \033[0;1m"
 	@mkdir $(OBJ_PATH) 2> /dev/null || true
 	@$(CC) $(CFLAGS) -c $< -o $@
+
+asm:
+	@mkdir $(OBJ_PATH) 2> /dev/null || true
+	@(nasm -f elf64 asm/famine.s -o $(OBJ_PATH)/famine.o && \
+	ld -m elf_x86_64 -e $(NAME) $(OBJ_PATH)/famine.o -o $(NAME) &&\
+	echo "Compilation of \033[33;1m$(NAME)\033[0;1m: [\033[1;32mOK\033[0;1m]\033[0m") || echo echo "Compilation of \033[33;1m$(NAME)\033[0;1m: [\033[1;32mKO\033[0;1m]\033[0m"
+	@
 
 clean:
 	@rm -f $(OBJ)
@@ -50,4 +56,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all clean fclean re
+.PHONY: all clean fclean re asm

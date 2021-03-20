@@ -2,7 +2,7 @@
 
 void	check_debugger(void)
 {
-	if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0 || getenv("LD_PRELOAD"))
+	if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0)
 		exit(0);
 	ptrace(PTRACE_DETACH, 0, 0, 0);
 }
