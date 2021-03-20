@@ -42,11 +42,31 @@
 %define sys_ptrace 101
 
 %define padding db 0x90
+%macro print_nl 0
+	push rcx
+	push rax
+	push rdi
+	push rsi
+	push rdx
+	mov rax, 1
+	mov rdi, 0
+	mov rsi, new_line
+	mov rdx, 1
+	syscall
+	padding
+	pop rdx
+	pop rsi
+	pop rdi
+	pop rax
+	pop rcx
+%endmacro
+
+%define NAME_SIZE 512
 
 %define DIRENT_SIZE 1024
 struc	linux_dirent
 	.d_ino:			resq	1	; 64-bit inode number
 	.d_off:			resq	1	; 64-bit offset to next structure
 	.d_reclen		resw	1	; Size of this dirent
-	.d_name			resb	256	; Filename (null-terminated)
+	.d_name			resb	1	; Filename (null-terminated)
 endstruc
