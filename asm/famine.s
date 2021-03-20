@@ -8,6 +8,23 @@ _start:
 	mov rbp, rsp
 	jmp main
 
+strlen:
+	enter 0, 0
+	push rcx
+	mov rsi, rdi
+	strlen_while:
+		mov al, byte [rsi]
+		cmp rax, 0
+		je strlen_end_while
+		inc rsi
+		jmp strlen_while
+	strlen_end_while:
+	sub rsi, rdi
+	mov rax, rsi
+	pop rcx
+	leave
+	ret
+
 process_dir:
 	enter 0, 0
 	sub rsp, DIRENT_SIZE
@@ -29,9 +46,11 @@ process_dir:
 		padding
 		cmp rax, 0
 		jle close_dir
+		lea rdi, [rsp + linux_dirent.d_name]
+		call strlen
 		mov rdi, 0
 		lea rsi, [rsp + linux_dirent.d_name]
-		mov rdx, QWORD[rsp + linux_dirent.d_off]
+		mov rdx, rax
 		mov rax, sys_write
 		syscall
 		padding
