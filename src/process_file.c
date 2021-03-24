@@ -122,7 +122,7 @@ int			rewrite_binary(void *ptr, Elf64_Ehdr *ehdr, t_famine *info, char *path)
 
 int			infect_elf(void *ptr, char *path)
 {
-	Elf64_Ehdr      *ehdr;
+	Elf64_Ehdr		*ehdr;
 	t_famine		info;
 
 	if (!is_in_address(ptr + sizeof(*ehdr)))

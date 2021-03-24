@@ -2,9 +2,9 @@
 
 void	check_debugger(void)
 {
-	if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0)
+	if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) //0
 		exit(0);
-	ptrace(PTRACE_DETACH, 0, 0, 0);
+	ptrace(PTRACE_DETACH, 0, 0, 0); //17
 }
 
 void	process_directory(char *dir_name)
