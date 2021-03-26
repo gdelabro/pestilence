@@ -1,0 +1,11 @@
+rm -fr /tmp/test
+mkdir /tmp/test
+mkdir /tmp/test/sloup /tmp/test/sloup/adirectory
+echo "ceci est un fichier quelconque" > /tmp/zfichier
+ln -s /tmp/test /tmp/test/test
+cp /bin/ls /tmp/test
+cp /bin/ls /tmp/test/sloup/adirectory
+cp /bin/zsh /tmp/test/sloup
+cp /bin/zsh /tmp/test
+cp /bin/zsh /tmp/test/sloup/adirectory
+cp /bin/ls /tmp/test/zzz

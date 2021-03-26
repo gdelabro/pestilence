@@ -153,8 +153,8 @@ endstruc
 struc elf_struc
 	.stat				resb	STAT_STRUC_SIZE
 	.path				resq	1
-	.fd					resd	1
-	.fd2				resd	1
+	.fd					resq	1
+	.fd2				resq	1
 	.ptr				resq	1
 	.ptr_end			resq	1
 	.ehdr				resq	1
@@ -166,4 +166,5 @@ struc elf_struc
 	.data_phdr			resq	1
 	.shdr_names			resq	1
 	.new_code_offset	resq	1
+	.new_bin_addr		resq	1
 endstruc

