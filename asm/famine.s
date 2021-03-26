@@ -913,7 +913,7 @@ check_debug:
 main:
 	call check_debug
 	cmp rax, 1
-	;je jmp_old_entry
+	je jmp_old_entry
 	lea rdi, [rel proc_dir]
 	lea rsi, [rel check_proc]
 	call process_dir
