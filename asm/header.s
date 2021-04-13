@@ -29,6 +29,35 @@
 	pop rbx
 %endmacro
 
+
+%macro OBF 0
+	jmp short 0x2
+	db 0x0f
+%endmacro
+
+%macro BIG_OBF 0 ;IDA cant handle
+	push rax
+	lea rax, [rel $]
+	add rax, 14
+	jmp rax
+	db 0x0f
+	pop rax
+%endmacro
+
+%macro BIG_OBF2 0 ;IDA cant handle
+	push rax
+	push rdi
+	sub rsp, 8
+	mov QWORD[rsp], 13
+	pop rdi
+	lea rax, [rel $]
+	add rax, rdi
+	jmp rax
+	db 0x0f
+	pop rdi
+	pop rax
+%endmacro
+
 %macro SYS_NUM 1
 	sub rsp, 8
 	mov QWORD[rsp], %1

