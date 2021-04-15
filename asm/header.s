@@ -35,16 +35,7 @@
 	db 0x0f
 %endmacro
 
-%macro BIG_OBF 0 ;IDA cant handle
-	push rax
-	lea rax, [rel $]
-	add rax, 14
-	jmp rax
-	db 0x0f
-	pop rax
-%endmacro
-
-%macro BIG_OBF2 0 ;IDA cant handle
+%macro BIG_OBF 0
 	push rax
 	push rdi
 	sub rsp, 8
@@ -58,10 +49,41 @@
 	pop rax
 %endmacro
 
+%macro JNK1 0
+	sub rsp, 8
+	mov QWORD[rsp], rdi
+	xor rdi, rax
+	add rdi, rsi
+	push rax
+	mov rax, QWORD[rsp + 8]
+	pop rdi
+	inc rsp
+	xor rax, rdi
+	xor rdi, rax
+	xor rax, rdi
+	add rsp, 7
+%endmacro
+
+%macro JNK2 0
+	xor r8, rbp
+	xor rbp, r8
+	xor r8, rbp
+	BIG_OBF
+	xchg r8, rbp
+%endmacro
+
+%macro ENTER_OBF 0
+	sub rsp, 8
+	mov QWORD[rsp], rbp
+	xchg rsp, rbp
+	mov rsp, rbp
+%endmacro
+
 %macro SYS_NUM 1
 	sub rsp, 8
-	mov QWORD[rsp], %1
+	mov QWORD[rsp], %1 - 1
 	pop rax
+	inc rax
 %endmacro
 
 %define OPEN_DIR_PERMISSION		65536

