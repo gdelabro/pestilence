@@ -35,6 +35,8 @@ key:
 
 decryptor:	;rdi:key  rsi:addr rdx:size
 	ENTER_OBF
+	cmp rdi, 0
+	je ret_
 	xor rcx, rcx
 	while_decrypt:
 		OBF
@@ -45,7 +47,7 @@ decryptor:	;rdi:key  rsi:addr rdx:size
 			sub r9, rcx
 			OBF
 			cmp r9, 8
-			jg end_trunc
+			jg end_trunc	; no need to trunc
 			mov r10, r9
 			mov r9, 8
 			sub r9, r10
@@ -432,14 +434,15 @@ fill_data_sec:
 encrypt_new_gen:	; rdi:bin_addr
 	ENTER_OBF
 	push rdi
+	sub rsp, 8
 	lea rdi, [rel rand_file]
 	mov rsi, OPEN_FILE_PERMISSION
 	SYS_NUM sys_open
 	OBF
 	syscall
+
 	cmp rax, 0
-	jl didnt_word
-	sub rsp, 8
+	jl didnt_work
 	mov rdi, rax
 	mov rsi, rsp
 	mov rdx, 8
@@ -448,13 +451,14 @@ encrypt_new_gen:	; rdi:bin_addr
 	OBF
 	syscall
 	pop rax
+
 	mov rdi, rax
 	SYS_NUM sys_close
 	OBF
 	syscall
 
 	jmp worked
-	didnt_word:
+	didnt_work:
 	xor rdi, rdi
 	mov QWORD[rsp], rdi
 	worked:
