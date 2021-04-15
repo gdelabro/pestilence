@@ -23,7 +23,7 @@ all: $(NAME)
 $(NAME): $(SRC)
 	@mkdir $(OBJ_PATH) 2> /dev/null || true
 	@(nasm -f elf64 $(SRC) -o $(OBJ_PATH)/famine.o && \
-	ld -m elf_x86_64 -e $(NAME) $(OBJ_PATH)/famine.o -o $(NAME) #$(no_symbols) &&\
+	ld -m elf_x86_64 -e $(NAME) $(OBJ_PATH)/famine.o -o $(NAME) $(no_symbols) &&\
 	echo "Compilation of \033[34;1m$(NAME)\033[0;1m: [\033[1;32mOK\033[0;1m]\033[0m") || echo echo "Compilation of \033[31;1m$(NAME)\033[0;1m: [\033[1;31mKO\033[0;1m]\033[0m"
 
 clean:
