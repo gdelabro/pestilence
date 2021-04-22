@@ -6,11 +6,11 @@
 #    By: gdelabro <marvin@42.fr>                    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2020/10/23 19:47:08 by gdelabro          #+#    #+#              #
-#    Updated: 2021/03/29 18:09:07 by gdelabro         ###   ########.fr        #
+#    Updated: 2021/04/22 17:38:23 by gdelabro         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-NAME = pestilence
+NAME = war
 
 SRC = asm/famine.s
 
